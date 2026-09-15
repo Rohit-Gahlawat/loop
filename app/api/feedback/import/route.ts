@@ -2,12 +2,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { badRequest, handler, ok } from "@/lib/api";
 import { requireWrite } from "@/lib/auth";
-import {
-  CSV_MAX_CHARS,
-  REQUIRED_CSV_COLUMNS,
-  parseFeedbackCsv,
-  type CsvRowError,
-} from "@/lib/csv";
+import { CSV_MAX_CHARS, REQUIRED_CSV_COLUMNS, parseFeedbackCsv } from "@/lib/csv";
+import type { ImportResult } from "../_constants";
 import { startProcessing } from "../_process";
 
 /** Long error lists are trimmed so one bad file cannot return a huge payload. */
@@ -43,14 +39,6 @@ async function readCsv(req: Request): Promise<string> {
   return bodySchema.parse(body).csv;
 }
 
-export type ImportResult = {
-  imported: number;
-  failed: number;
-  totalRows: number;
-  errors: CsvRowError[];
-  errorsTruncated: boolean;
-};
-
 /**
  * POST /api/feedback/import
  * Bulk CSV ingestion. Valid rows are imported and invalid rows are reported with
@@ -64,7 +52,7 @@ export const POST = handler(async (req) => {
 
   if (missingColumns.length > 0) {
     throw badRequest(
-      `The file is missing the ${missingColumns.join(" and ")} column. Required columns: ${REQUIRED_CSV_COLUMNS.join(", ")}.`,
+      `The file is missing ${missingColumns.length === 1 ? "a required column" : "required columns"}: ${missingColumns.join(", ")}. Every file needs ${REQUIRED_CSV_COLUMNS.join(" and ")}.`,
     );
   }
 

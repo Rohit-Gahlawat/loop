@@ -3,18 +3,13 @@ import { prisma } from "@/lib/db";
 import { badRequest, handler, ok, parseJson } from "@/lib/api";
 import { requireWrite } from "@/lib/auth";
 import { SIMULATED_SOURCES, buildSimulatedBatch } from "../_simulate";
+import type { SimulateResult, SimulatedSourceSummary } from "../_constants";
 import { startProcessing } from "../_process";
 
 const simulateSchema = z.object({
   source: z.string().trim().min(1, "Choose a channel to simulate."),
   count: z.coerce.number().int().min(1).max(25).default(8),
 });
-
-export type SimulateResult = {
-  created: number;
-  channel: string;
-  source: string;
-};
 
 /**
  * POST /api/feedback/simulate
@@ -57,12 +52,12 @@ export const POST = handler(async (req) => {
 export const GET = handler(async () => {
   await requireWrite();
 
-  return ok(
-    SIMULATED_SOURCES.map((source) => ({
-      id: source.id,
-      label: source.label,
-      description: source.description,
-      channel: source.channel,
-    })),
-  );
+  const sources: SimulatedSourceSummary[] = SIMULATED_SOURCES.map((source) => ({
+    id: source.id,
+    label: source.label,
+    description: source.description,
+    channel: source.channel,
+  }));
+
+  return ok(sources);
 });

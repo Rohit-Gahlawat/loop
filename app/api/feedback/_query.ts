@@ -1,6 +1,7 @@
 import { FeedbackStatus, Prisma, Sentiment } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, UNCLASSIFIED } from "./_constants";
 
 /**
  * Reading feedback: filters, search and pagination.
@@ -9,13 +10,6 @@ import { prisma } from "@/lib/db";
  * the same rules. Every function here takes the caller's workspaceId and puts it
  * in the where clause. Nothing in this module can read across workspaces.
  */
-
-export const PAGE_SIZES = [10, 25, 50, 100] as const;
-export const DEFAULT_PAGE_SIZE = 25;
-export const MAX_PAGE_SIZE = 100;
-
-/** Rows the pipeline has not classified yet. Selectable as a sentiment filter. */
-export const UNCLASSIFIED = "UNCLASSIFIED";
 
 const dateOnly = z
   .string()
@@ -69,6 +63,21 @@ export function readFeedbackQuery(
   }
 
   return feedbackQuerySchema.parse(raw);
+}
+
+/**
+ * Same thing for the inbox page, which gets its params from the address bar. A
+ * hand-edited URL should show the unfiltered inbox with a notice, not an error
+ * page, so unparseable input falls back to the defaults.
+ */
+export function readFeedbackQuerySafe(
+  source: URLSearchParams | Record<string, string | string[] | undefined>,
+): { query: FeedbackQuery; invalid: boolean } {
+  try {
+    return { query: readFeedbackQuery(source), invalid: false };
+  } catch {
+    return { query: feedbackQuerySchema.parse({}), invalid: true };
+  }
 }
 
 /** At most six terms, each of which must appear somewhere in the content. */

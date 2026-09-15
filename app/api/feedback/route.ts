@@ -18,12 +18,20 @@ export const GET = handler(async (req) => {
 });
 
 const createFeedbackSchema = z.object({
-  content: z.string().trim().min(1, "Feedback content is required.").max(5000),
-  channel: z.string().trim().min(1, "Choose a channel.").max(80),
+  content: z
+    .string({ error: "Feedback content is required." })
+    .trim()
+    .min(1, "Feedback content is required.")
+    .max(5000, "Keep feedback under 5000 characters."),
+  channel: z
+    .string({ error: "Choose a channel." })
+    .trim()
+    .min(1, "Choose a channel.")
+    .max(80, "Keep the channel name under 80 characters."),
   customerLabel: z
     .string()
     .trim()
-    .max(120)
+    .max(120, "Keep the customer label under 120 characters.")
     .optional()
     .transform((value) => (value ? value : null)),
 });
