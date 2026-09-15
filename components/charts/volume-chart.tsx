@@ -45,12 +45,12 @@ export function VolumeChart({ series }: { series: VolumeSeries }) {
   const byStart = new Map(series.points.map((point) => [point.bucketStart, point]));
   const counts = series.points.map((point) => point.count);
   const highest = Math.max(...counts);
-  const lowest = Math.min(...counts);
 
   // Label the extreme, not every point. A value beside all eighty-five of them
-  // would be unreadable, and a flat series has no extreme worth pointing at.
+  // would be unreadable. The label is dropped when several buckets tie for the
+  // highest, because marking one of them would imply it stood alone.
   const peak =
-    series.points.length > 1 && highest > lowest
+    counts.filter((count) => count === highest).length === 1 && highest > 0
       ? series.points.find((point) => point.count === highest)
       : undefined;
 

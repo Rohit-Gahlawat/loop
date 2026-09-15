@@ -125,7 +125,13 @@ export function SentimentChart({ breakdown }: { breakdown: SentimentBreakdown })
     },
   ];
 
+  // Ticks are placed by hand rather than left to the chart. An automatic scale
+  // picks its own round numbers, which on a symmetric domain lands a tick near
+  // but not on the centre, and labelling that "2" instead of "0" would put the
+  // dividing line in the wrong place for anyone reading the axis.
   const bound = Math.max(1, Math.ceil(Math.max(negative, positive) + neutral / 2));
+  const half = Math.max(1, Math.round(bound / 2));
+  const ticks = [-bound, -half, 0, half, bound];
 
   return (
     <div>
@@ -140,6 +146,7 @@ export function SentimentChart({ breakdown }: { breakdown: SentimentBreakdown })
           <XAxis
             type="number"
             domain={[-bound, bound]}
+            ticks={ticks}
             allowDecimals={false}
             tickFormatter={(value: number) => formatCount(Math.abs(value))}
             tickLine={false}
