@@ -90,7 +90,8 @@ npm run dev             # http://localhost:3000
 
 | Variable | Purpose |
 |---|---|
-| `DATABASE_URL` | PostgreSQL connection string |
+| `DATABASE_URL` | Pooled PostgreSQL connection string, used at runtime |
+| `DIRECT_URL` | Unpooled connection string, used only by migrations |
 | `NEXTAUTH_SECRET` | Session signing secret. Generate with `openssl rand -base64 32` |
 | `NEXTAUTH_URL` | Base URL of the app |
 | `AI_PROVIDER` | `anthropic` or `openai-compatible` |

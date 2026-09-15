@@ -8,7 +8,10 @@ generator client {
 
 datasource db {
   provider   = "postgresql"
+  // Pooled connection. Serverless functions open many short-lived connections.
   url        = env("DATABASE_URL")
+  // Direct connection. Migrations need session-level operations a pooler cannot proxy.
+  directUrl  = env("DIRECT_URL")
   extensions = [vector, pg_trgm]
 }
 
