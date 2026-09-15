@@ -46,13 +46,11 @@ the client.
                        |
                        +-> model provider, server-side only
 
-Two rules hold the design together.
-
-**Every tenant-scoped query filters on workspaceId.** Route handlers call `requireSession`,
+Every tenant-scoped query filters on workspaceId. Route handlers call `requireSession`,
 which returns the caller's user id, workspace id and role. There is no code path that
 reads feedback without a workspace filter.
 
-**Roles are enforced on the server.** `requireRole` guards every mutating route. Hiding a
+Roles are enforced on the server. `requireRole` guards every mutating route. Hiding a
 button is not access control, so a forbidden action returns 403 rather than failing
 somewhere deeper.
 
