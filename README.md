@@ -1,36 +1,143 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LOOP
 
-## Getting Started
+An AI customer-feedback intelligence platform. Companies receive feedback through
+support tickets, app-store reviews, surveys, sales notes and community posts faster
+than anyone can read it. LOOP takes all of it, classifies it, groups it into themes,
+shows what is trending, and answers plain-English questions with answers backed by the
+actual feedback.
 
-First, run the development server:
+Built as a multi-tenant application: each company is a workspace, and no workspace can
+read another workspace's data.
+
+## Status
+
+Foundation in place. Feature work in progress.
+
+- [x] Multi-tenant data model
+- [x] Authentication, workspaces and three roles
+- [x] Member management
+- [x] Seed data
+- [ ] Feedback ingestion and inbox
+- [ ] Analytics dashboard
+- [ ] Auto-classification and theme trends
+- [ ] Ask LOOP grounded question answering
+- [ ] Voice-of-Customer report
+
+## Tech stack
+
+| Layer | Choice |
+|---|---|
+| Framework | Next.js 14, App Router, TypeScript |
+| Styling | Tailwind CSS |
+| Database | PostgreSQL with pgvector |
+| ORM | Prisma |
+| Auth | NextAuth credentials provider, JWT sessions |
+| Validation | Zod on every API boundary |
+| Charts | Recharts |
+| Hosting | Vercel |
+
+## Architecture
+
+Three tiers. The browser talks only to this app's route handlers. Route handlers are the
+only thing that talks to the database or to a model provider, so no API key ever reaches
+the client.
+
+    browser  ->  route handlers  ->  services  ->  PostgreSQL
+                       |
+                       +-> model provider, server-side only
+
+Two rules hold the design together.
+
+**Every tenant-scoped query filters on workspaceId.** Route handlers call `requireSession`,
+which returns the caller's user id, workspace id and role. There is no code path that
+reads feedback without a workspace filter.
+
+**Roles are enforced on the server.** `requireRole` guards every mutating route. Hiding a
+button is not access control, so a forbidden action returns 403 rather than failing
+somewhere deeper.
+
+Ingestion calls a single `processFeedback` seam. Classification and embedding sit behind
+it as independent steps, so one can fail without breaking the other or the request that
+created the feedback.
+
+## Roles
+
+| Role | Can do |
+|---|---|
+| ADMIN | Everything, plus managing members and their roles |
+| ANALYST | Ingest and manage feedback |
+| VIEWER | Read-only |
+
+## Running locally
+
+Requires Node 18 or newer and a PostgreSQL database with the `vector` and `pg_trgm`
+extensions available. Neon and Supabase both provide these on their free tiers.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/Rohit-Gahlawat/loop.git
+cd loop
+npm install
+
+cp .env.example .env    # then fill in the values below
+
+npx prisma migrate dev  # create the schema
+npm run db:seed         # load the demo workspace
+
+npm run dev             # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Environment variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `NEXTAUTH_SECRET` | Session signing secret. Generate with `openssl rand -base64 32` |
+| `NEXTAUTH_URL` | Base URL of the app |
+| `AI_PROVIDER` | `anthropic` or `openai-compatible` |
+| `AI_MODEL` | Model identifier |
+| `AI_API_KEY` | Key for the chat model |
+| `AI_BASE_URL` | Only when `AI_PROVIDER=openai-compatible` |
+| `VOYAGE_API_KEY` | Embeddings key, used by semantic search |
+| `VOYAGE_MODEL` | Embedding model, must produce 1024 dimensions |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Useful commands
 
-## Learn More
+```bash
+npm run typecheck    # tsc --noEmit
+npm run lint         # eslint
+npm run db:studio    # browse the database
+npm run db:seed      # rebuild the demo workspace
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Demo accounts
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The seed script creates one account per role in the Northwind Software workspace so the
+role behaviour can be checked without signing up.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Email | Role |
+|---|---|
+| `admin@loop.demo` | ADMIN |
+| `analyst@loop.demo` | ANALYST |
+| `viewer@loop.demo` | VIEWER |
 
-## Deploy on Vercel
+Password for all three: `Demo1234!`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+These exist only in seeded demo data.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Repository layout
+
+    app/
+      (auth)/          sign-in and sign-up
+      (app)/           the application shell and its pages
+      api/             route handlers
+    components/ui/     shared primitives
+    lib/
+      api.ts           response envelope and error handling
+      auth.ts          session, workspace scoping, role guards
+      db.ts            Prisma client
+      ai/              model adapter and classification
+      search/          embeddings and retrieval
+      pipeline/        post-ingest processing
+    prisma/
+      schema.prisma
+      seed.ts
