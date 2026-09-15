@@ -1,0 +1,139 @@
+// LOOP data model.
+// Every tenant-owned table carries workspaceId. No query may omit it.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector, pg_trgm]
+}
+
+enum Role {
+  ADMIN
+  ANALYST
+  VIEWER
+}
+
+enum Sentiment {
+  POS
+  NEU
+  NEG
+}
+
+enum FeedbackStatus {
+  NEW
+  REVIEWED
+  ACTIONED
+}
+
+model Workspace {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  users    User[]
+  feedback Feedback[]
+  themes   Theme[]
+  reports  Report[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(VIEWER)
+  createdAt    DateTime @default(now())
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  reports Report[]
+
+  @@index([workspaceId])
+}
+
+model Feedback {
+  id             String         @id @default(cuid())
+  content        String
+  channel        String
+  sourceRef      String?
+  customerLabel  String?
+  sentiment      Sentiment?
+  sentimentScore Float?
+  featureArea    String?
+  status         FeedbackStatus @default(NEW)
+  classifiedAt   DateTime?
+  createdAt      DateTime       @default(now())
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  themes    FeedbackTheme[]
+  embedding Embedding?
+
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, status])
+  @@index([workspaceId, sentiment])
+  @@index([workspaceId, channel])
+}
+
+model Theme {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String   @default("#6366f1")
+  createdAt   DateTime @default(now())
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  feedback FeedbackTheme[]
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
+}
+
+model FeedbackTheme {
+  feedbackId String
+  feedback   Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  themeId String
+  theme   Theme  @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
+  confidence Float @default(1)
+
+  @@id([feedbackId, themeId])
+  @@index([themeId])
+}
+
+// vector is written and read with raw SQL. Prisma Client cannot select Unsupported columns.
+model Embedding {
+  id        String                      @id @default(cuid())
+  vector    Unsupported("vector(1024)")
+  createdAt DateTime                    @default(now())
+
+  feedbackId String   @unique
+  feedback   Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  title       String
+  periodStart DateTime
+  periodEnd   DateTime
+  contentJson Json
+  createdAt   DateTime @default(now())
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  generatedById String
+  generatedBy   User   @relation(fields: [generatedById], references: [id])
+
+  @@index([workspaceId, createdAt])
+}
