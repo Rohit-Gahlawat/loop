@@ -93,11 +93,11 @@ npm run dev             # http://localhost:3000
 | `NEXTAUTH_SECRET` | Session signing secret. Generate with `openssl rand -base64 32` |
 | `NEXTAUTH_URL` | Base URL of the app |
 | `AI_PROVIDER` | `anthropic` or `openai-compatible` |
-| `AI_MODEL` | Model identifier |
-| `AI_API_KEY` | Key for the chat model |
-| `AI_BASE_URL` | Only when `AI_PROVIDER=openai-compatible` |
-| `VOYAGE_API_KEY` | Embeddings key, used by semantic search |
-| `VOYAGE_MODEL` | Embedding model, must produce 1024 dimensions |
+| `AI_BASE_URL` | Base URL when `AI_PROVIDER=openai-compatible` |
+| `AI_MODEL` | Chat model identifier |
+| `AI_API_KEY` | Key for the model provider, used for chat and embeddings |
+| `EMBEDDING_MODEL` | Embedding model identifier |
+| `EMBEDDING_DIMENSIONS` | Must match the vector size in the Prisma schema |
 
 ### Useful commands
 

@@ -117,7 +117,7 @@ model FeedbackTheme {
 // vector is written and read with raw SQL. Prisma Client cannot select Unsupported columns.
 model Embedding {
   id        String                      @id @default(cuid())
-  vector    Unsupported("vector(1024)")
+  vector    Unsupported("vector(768)")
   createdAt DateTime                    @default(now())
 
   feedbackId String   @unique
