@@ -2,7 +2,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { ApiError, badRequest, handler, notFound, ok, parseJson } from "@/lib/api";
 import { requireWrite } from "@/lib/auth";
-import { classifyBatch } from "@/lib/ai/classify";
+import { classifyBatch, type ClassificationOutcome } from "@/lib/ai/classify";
 import { DEFAULT_RECLASSIFY_LIMIT, MAX_RECLASSIFY_ITEMS } from "../_constants";
 
 export const dynamic = "force-dynamic";
@@ -90,10 +90,18 @@ export const POST = handler(async (req) => {
   const { ids, missing } = await resolveTargets(input, workspaceId);
 
   if (ids.length === 0) {
+    if (input.target !== "unclassified") {
+      throw badRequest("None of those items are in your workspace.");
+    }
+
+    // An empty backlog and an empty workspace are different situations, and
+    // "everything is classified" would be a strange thing to tell somebody who
+    // has not ingested anything yet.
+    const any = await prisma.feedback.count({ where: { workspaceId } });
     throw badRequest(
-      input.target === "unclassified"
-        ? "Every item in this workspace has already been classified."
-        : "None of those items are in your workspace.",
+      any === 0
+        ? "There is no feedback in this workspace yet."
+        : "Every item in this workspace has already been classified.",
     );
   }
 
@@ -102,17 +110,19 @@ export const POST = handler(async (req) => {
   // work alone.
   const force = input.target !== "unclassified";
 
-  let outcome;
+  let outcome: ClassificationOutcome;
   try {
     outcome = await classifyBatch(ids, workspaceId, { force, spacingMs: 500 });
   } catch (error) {
     // The provider being down or misconfigured is not this app failing, and a
     // 500 with "Something went wrong" would send somebody to the wrong log.
+    // Anything classified before the provider stopped answering is already
+    // saved, so this does not promise that nothing changed.
     console.error("Re-classification could not reach the model provider:", error);
     throw new ApiError(
       502,
       "MODEL_UNAVAILABLE",
-      "The classifier could not be reached. Nothing was changed. Try again in a moment.",
+      "The classifier stopped answering. Anything it finished is saved. Try the rest in a moment.",
     );
   }
 

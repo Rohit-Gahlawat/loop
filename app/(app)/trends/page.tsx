@@ -73,10 +73,14 @@ function NotClassifiedYet({
   return (
     <Card>
       <EmptyState
-        title="No feedback has been classified yet"
+        title={
+          coverage.total === 0
+            ? "Nothing matches these filters"
+            : "No feedback has been classified yet"
+        }
         description={
           coverage.total === 0
-            ? "Nothing matches the current filters, so there is nothing to group into themes."
+            ? "No feedback falls inside the current filters, so there is nothing to group into themes. Widen the date range or clear a filter."
             : `${formatCount(coverage.total)} items are waiting and ${formatCount(coverage.themeCount)} themes are set up. Classification runs on ingest, so anything that arrived before it was switched on needs catching up once.`
         }
         action={

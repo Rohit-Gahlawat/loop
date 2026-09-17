@@ -44,6 +44,13 @@ const MAX_CONTENT_CHARS = 1_200;
 const DEFAULT_SPACING_MS = 1_000;
 
 /**
+ * How long one request may take before it is abandoned and asked again. Well
+ * clear of the slowest replies observed, which run to tens of seconds when the
+ * provider is busy.
+ */
+const REQUEST_TIMEOUT_MS = 90_000;
+
+/**
  * The reply budget.
  *
  * Gemini reasons before it answers and charges that reasoning against
@@ -385,6 +392,33 @@ function outputBudget(itemCount: number): number {
 }
 
 /**
+ * A deadline of our own.
+ *
+ * A request that never comes back would hold the classify step open for as long
+ * as the connection stayed alive, and the provider call sets no deadline. The
+ * losing side of this race cannot cancel the request underneath it, so that
+ * socket is left to close on its own; what matters is that the batch stops
+ * waiting. The message says "timed out", which the retry treats as transient
+ * and repeats.
+ */
+function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`Model request timed out after ${ms}ms.`)), ms);
+
+    work.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+/**
  * One request, read into validated items.
  *
  * Transport failures are retried underneath by `withProviderRetry`, which is a
@@ -401,12 +435,15 @@ async function requestBatch(
 
   const raw = await withProviderRetry(
     () =>
-      complete({
-        system: SYSTEM_PROMPT,
-        prompt: buildPrompt(items, themeNames, stricter),
-        maxTokens: outputBudget(items.length),
-        temperature: 0,
-      }),
+      withTimeout(
+        complete({
+          system: SYSTEM_PROMPT,
+          prompt: buildPrompt(items, themeNames, stricter),
+          maxTokens: outputBudget(items.length),
+          temperature: 0,
+        }),
+        REQUEST_TIMEOUT_MS,
+      ),
     {
       label: "classification",
       onRetry: () => {
