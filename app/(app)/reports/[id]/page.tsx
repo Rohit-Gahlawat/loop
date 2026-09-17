@@ -41,6 +41,26 @@ const STAMP = new Intl.DateTimeFormat("en-GB", {
   timeZone: "UTC",
 });
 
+/**
+ * Export is the browser's own print dialogue, which needs the application
+ * chrome out of the way and cards kept whole across a page break. It lives
+ * with the page rather than in the global stylesheet because nothing else in
+ * the application prints, and it is set as raw HTML because React escapes the
+ * quotes in a style element's text children on the server but not in the
+ * browser, which is a hydration mismatch.
+ */
+const PRINT_CSS = `
+@media print {
+  body { background: #fff; }
+  header, .no-print { display: none !important; }
+  main { max-width: none !important; padding: 0 !important; }
+  .report-block { break-inside: avoid; box-shadow: none !important; }
+  .report-bar, .report-swatch { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  a[href]::after { content: ""; }
+}
+@page { margin: 16mm; }
+`;
+
 const SENTIMENT_LABEL: Record<SentimentKey, string> = {
   NEG: "Negative",
   NEU: "Neutral",
@@ -436,23 +456,7 @@ export default async function ReportPage({ params }: { params: { id: string } })
 
   return (
     <>
-      {/*
-        Export is the browser's own print dialogue, which needs the application
-        chrome out of the way and the cards kept whole across a page break. Kept
-        with the page rather than in the global stylesheet, because nothing else
-        in the application prints.
-      */}
-      <style>{`
-        @media print {
-          body { background: #fff; }
-          header, .no-print { display: none !important; }
-          main { max-width: none !important; padding: 0 !important; }
-          .report-block { break-inside: avoid; box-shadow: none !important; }
-          .report-bar, .report-swatch { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-          a[href]::after { content: ""; }
-        }
-        @page { margin: 16mm; }
-      `}</style>
+      <style dangerouslySetInnerHTML={{ __html: PRINT_CSS }} />
 
       <div className="no-print mb-6 flex flex-wrap items-center justify-between gap-3">
         <Link href="/reports" className="text-sm font-medium text-indigo-700">
